@@ -63,3 +63,5 @@ out/
 # Vim swap files
 .*.swp
 *.swp
+
+client_secret*.json
