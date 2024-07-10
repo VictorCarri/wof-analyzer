@@ -65,3 +65,4 @@ out/
 *.swp
 
 client_secret*.json
+credentials.json
