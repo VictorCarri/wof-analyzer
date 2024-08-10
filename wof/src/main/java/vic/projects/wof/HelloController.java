@@ -81,20 +81,26 @@ public class HelloController {
 			+ credsFileResource.getDescription()
 		);
 		InputStream fin = credsFileResource.getInputStream();
+		System.out.println("getCredentials: fetched the resource's input stream");
 		
 		if (fin == null) {
 			throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
 		}
 		
 		GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(fin));
+		System.out.println("getCredentials: loaded a new Google Client Secrets object");
 
 		/* Build flow and trigger user authorization request */
 		GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
 			.setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
 			.setAccessType("offline")
 			.build();
+		System.out.println("getCredentials: created a new Google authorization code flow");
 		LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-		return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+		System.out.println("getCredentials: created a new local server receiver");
+		Credential toReturn = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+		System.out.println("getCredentials: created a new credential object.");
+		return toReturn;
 	}
 
 	/**
@@ -109,13 +115,19 @@ public class HelloController {
 		{
 			/* Build a new authorized API client service */
 			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-			final String spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA/edit?gid=0#gid=0";
+			System.out.println("getRowCount: built a new NetHttpTransport");
+			final String spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
+			System.out.println("getRowCount: spreadsheet ID = " + spreadsheetId);
 			final String range = "Raw data!B:C"; // The date & value columns
+			System.out.println("getRowCount: range = " + range);
 			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
 				.setApplicationName(APPLICATION_NAME)
 				.build();
+			System.out.println("getRowCount: built a new Sheets service");
 			ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
+			System.out.println("getRowCount: got a response!");
 			List<List<Object>> values = response.getValues();
+			System.out.println("getRowCount: fetched values");
 		
 			if (values == null || values.isEmpty())
 			{
@@ -129,6 +141,8 @@ public class HelloController {
 				{
 					System.out.printf("%s %s\n", row.get(1), row.get(2));
 				}
+		
+				toReturn = 4;
 			}
 		}
 
