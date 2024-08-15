@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.io.InputStream;
 import java.io.File;
+import java.util.Iterator;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -137,11 +138,22 @@ public class HelloController {
 		
 			else
 			{
-				for (List row : values)
+				System.out.println("getRowCount: printing values.\n$value's size is " + values.size());
+				/*for (List row : values)
 				{
 					System.out.printf("%s %s\n", row.get(1), row.get(2));
+				}*/
+				Iterator<List<Object>> valueIt = values.iterator(); // Get an iterator over the list's elements
+	
+				while (valueIt.hasNext())
+				{
+					Object nextElem = valueIt.next();
+					String nextElemStr = nextElem.toString();
+					System.out.println("Next element as a string: " + nextElemStr);
+					valueIt.remove();
 				}
-		
+
+				System.out.println("getRowCount: finished printing values.");
 				toReturn = 4;
 			}
 		}
