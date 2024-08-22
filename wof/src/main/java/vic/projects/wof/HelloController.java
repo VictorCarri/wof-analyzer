@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.io.InputStream;
 import java.io.File;
-import java.util.Iterator;
+import java.util.ListIterator;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -51,6 +51,8 @@ public class HelloController {
 	private final List<String> SCOPES;
 	//private static final String CREDENTIALS_FILE_PATH = "classpath:resources/main/static/credentials.json";
 	private final String CREDENTIALS_FILE_PATH;
+	private final String spreadsheetId;
+	private final String range; // The date & value columns
 
 	/*
 	* @desc Constructor. Creates the class and initializes our properties.
@@ -62,6 +64,8 @@ public class HelloController {
 		this.TOKENS_DIRECTORY_PATH = "tokens";
 		this.SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
 		this.CREDENTIALS_FILE_PATH = "static/credentials.json";
+		this.spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
+		this.range = "Raw data!B:C"; // The date & value columns
 	}
 
 	@GetMapping("/")
@@ -117,9 +121,9 @@ public class HelloController {
 			/* Build a new authorized API client service */
 			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 			System.out.println("getRowCount: built a new NetHttpTransport");
-			final String spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
+			//final String spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
 			System.out.println("getRowCount: spreadsheet ID = " + spreadsheetId);
-			final String range = "Raw data!B:C"; // The date & value columns
+			//final String range = "Raw data!B:C"; // The date & value columns
 			System.out.println("getRowCount: range = " + range);
 			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
 				.setApplicationName(APPLICATION_NAME)
@@ -139,18 +143,37 @@ public class HelloController {
 			else
 			{
 				System.out.println("getRowCount: printing values.\n$value's size is " + values.size());
-				/*for (List row : values)
-				{
-					System.out.printf("%s %s\n", row.get(1), row.get(2));
-				}*/
-				Iterator<List<Object>> valueIt = values.iterator(); // Get an iterator over the list's elements
+
+				/* Loop over each row */
+				ListIterator<List<Object>> rowIt = values.listIterator(); // Get an iterator over the list's elements
 	
-				while (valueIt.hasNext())
+				/*while (rowIt.hasNext())
 				{
-					Object nextElem = valueIt.next();
-					String nextElemStr = nextElem.toString();
+					List<Object> nextRow = (List<Object>)(rowIt.next());
+					String nextElemStr = nextRow.toString();
 					System.out.println("Next element as a string: " + nextElemStr);
-					valueIt.remove();
+					ListIterator<Object> colIt = nextRow.listIterator();
+
+					while (colIt.hasNext)
+					{
+					}
+
+					rowIt.remove();
+				}*/
+
+				int rowNum = 1;
+				for (List<Object> curRow = rowIt.next(); rowIt.hasNext(); curRow = rowIt.next(), ++rowNum)
+				{
+					ListIterator<Object> colIt = curRow.listIterator();
+					System.out.println("Printing R" + Integer.toString(rowNum));
+					int colNum = 1;
+			
+					for (Object curObj = colIt.next(); colIt.hasNext(); curObj = colIt.next(), ++colNum)
+					{
+						System.out.print("\tC" + Integer.toString(colNum) + ":" + curObj.toString());
+					}
+
+					System.out.println("\nFinished printing R" + Integer.toString(rowNum) + "\n");
 				}
 
 				System.out.println("getRowCount: finished printing values.");
