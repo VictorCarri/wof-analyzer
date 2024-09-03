@@ -5,11 +5,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
 import java.util.List;
 import java.io.InputStream;
 import java.io.File;
 import java.util.ListIterator;
+import java.util.Arrays;
+import java.util.ArrayList;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -25,16 +26,20 @@ import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
+import com.google.api.services.sheets.v4.model.ValueRange;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
-import com.google.api.services.sheets.v4.model.ValueRange;
+import com.google.api.services.sheets.v4.model.BatchGetValuesResponse;
 
 @RestController
-public class HelloController {
+public class WOFController {
 	//private static final String APPLICATION_NAME = "WOF Stats Counter";
 	private final String APPLICATION_NAME;
 
@@ -47,25 +52,26 @@ public class HelloController {
 	* Global instance of the scopes we need.
 	* Delete the tokens/ folder if I modify this.
 	*/
-	//private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
 	private final List<String> SCOPES;
-	//private static final String CREDENTIALS_FILE_PATH = "classpath:resources/main/static/credentials.json";
-	private final String CREDENTIALS_FILE_PATH;
+	//private static final String credsFilePath = "classpath:resources/main/static/credentials.json";
+	private final String credsFilePath;
 	private final String spreadsheetId;
-	private final String range; // The date & value columns
+	private final ArrayList<String> ranges;
 
 	/*
 	* @desc Constructor. Creates the class and initializes our properties.
 	*/
-	public HelloController()
+	public WOFController()
 	{
 		this.APPLICATION_NAME = "WOF Stats Counter";
 		this.JSON_FACTORY = GsonFactory.getDefaultInstance();
 		this.TOKENS_DIRECTORY_PATH = "tokens";
-		this.SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
-		this.CREDENTIALS_FILE_PATH = "static/credentials.json";
+		//this.SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
+		this.SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS_READONLY);
+		this.credsFilePath = "static/credentials.json";
 		this.spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
-		this.range = "Raw data!B:C"; // The date & value columns
+		String[] strRanges = {"'Raw data'!B:B", "'Raw data'!C:C"}; 
+		this.ranges = new ArrayList(Arrays.asList(strRanges)); // The date & value columns
 	}
 
 	@GetMapping("/")
@@ -80,8 +86,8 @@ public class HelloController {
 	* @throws IOException If it can't find the credentials.json file.
 	*/
 	private Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
-	//	FileInputStream in = (FileInputStream)HelloController.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
-		ClassPathResource credsFileResource = new ClassPathResource(CREDENTIALS_FILE_PATH);
+	//	FileInputStream in = (FileInputStream)WOFController.class.getResourceAsStream(credsFilePath);
+		ClassPathResource credsFileResource = new ClassPathResource(credsFilePath);
 		System.out.println("Credentials file's absolute path: " + credsFileResource.getPath() + "\nWorking directory: " + System.getProperty("user.dir") + "\nClasspath: " + System.getProperty("java.class.path") + "\nResource description: "
 			+ credsFileResource.getDescription()
 		);
@@ -89,7 +95,7 @@ public class HelloController {
 		System.out.println("getCredentials: fetched the resource's input stream");
 		
 		if (fin == null) {
-			throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
+			throw new FileNotFoundException("Resource not found: " + credsFilePath);
 		}
 		
 		GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(fin));
@@ -118,67 +124,26 @@ public class HelloController {
 
 		try
 		{
-			/* Build a new authorized API client service */
+			/* Load pre-authoized user credentials from the enironment */
 			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-			System.out.println("getRowCount: built a new NetHttpTransport");
-			//final String spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
-			System.out.println("getRowCount: spreadsheet ID = " + spreadsheetId);
-			//final String range = "Raw data!B:C"; // The date & value columns
-			System.out.println("getRowCount: range = " + range);
+			System.out.println("getRowCount: created a new trusted transport");
 			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
 				.setApplicationName(APPLICATION_NAME)
 				.build();
-			System.out.println("getRowCount: built a new Sheets service");
-			ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
-			System.out.println("getRowCount: got a response!");
-			List<List<Object>> values = response.getValues();
-			System.out.println("getRowCount: fetched values");
-		
-			if (values == null || values.isEmpty())
+			System.out.println("getRowCount: created a new sheets service.");
+			BatchGetValuesResponse readResult = service.spreadsheets().values()
+				.batchGet(spreadsheetId)
+				.setRanges(ranges)
+				.execute();
+			System.out.println("getRowCount: fetched a new batch of values.");
+			List<ValueRange> valueRangeList = readResult.getValueRanges();
+
+			for (ValueRange curRange : valueRangeList)
 			{
-				System.out.println("No data found");
-				toReturn = 3;
+				System.out.println("RANGE START\n\n" + curRange + "\nRANGE END\n");
 			}
-		
-			else
-			{
-				System.out.println("getRowCount: printing values.\n$value's size is " + values.size());
 
-				/* Loop over each row */
-				ListIterator<List<Object>> rowIt = values.listIterator(); // Get an iterator over the list's elements
-	
-				/*while (rowIt.hasNext())
-				{
-					List<Object> nextRow = (List<Object>)(rowIt.next());
-					String nextElemStr = nextRow.toString();
-					System.out.println("Next element as a string: " + nextElemStr);
-					ListIterator<Object> colIt = nextRow.listIterator();
-
-					while (colIt.hasNext)
-					{
-					}
-
-					rowIt.remove();
-				}*/
-
-				int rowNum = 1;
-				for (List<Object> curRow = rowIt.next(); rowIt.hasNext(); curRow = rowIt.next(), ++rowNum)
-				{
-					ListIterator<Object> colIt = curRow.listIterator();
-					System.out.println("Printing R" + Integer.toString(rowNum));
-					int colNum = 1;
-			
-					for (Object curObj = colIt.next(); colIt.hasNext(); curObj = colIt.next(), ++colNum)
-					{
-						System.out.print("\tC" + Integer.toString(colNum) + ":" + curObj.toString());
-					}
-
-					System.out.println("\nFinished printing R" + Integer.toString(rowNum) + "\n");
-				}
-
-				System.out.println("getRowCount: finished printing values.");
-				toReturn = 4;
-			}
+			toReturn = 4;
 		}
 
 		catch (IOException ioe)
