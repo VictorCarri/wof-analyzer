@@ -140,8 +140,10 @@ public class WOFController {
 
 			for (ValueRange curRange : valueRangeList)
 			{
-				System.out.println("RANGE START\n\n" + curRange + "\nRANGE END\n");
+				System.out.println("RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
 			}
+
+			ValueRange dateRange = valueRangeList.
 
 			toReturn = 4;
 		}
