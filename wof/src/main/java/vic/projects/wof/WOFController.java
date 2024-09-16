@@ -11,6 +11,9 @@ import java.io.File;
 import java.util.ListIterator;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.format.DateTimeFormatter;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -181,17 +184,23 @@ public class WOFController {
 					/* Fetch the next date and the next spin */
 					Object curDate = dateIt.next();
 					Object curSpin = spinIt.next();
-					System.out.println(curDate + "\t|\t" + curSpin);
+					//System.out.println(curDate + "\t|\t" + curSpin);
+
+					if (isValidDate(curDate.toString()))
+					{
+						LocalDate dateObj = parseDate(curDate.toString());
+						System.out.println("\t" + dateObj + "\t|\t" + curSpin);
+					}
 				}
 			}
 
-			toReturn = 3;
+			toReturn = 1;
 		}
 
 		catch (IOException ioe)
 		{
 			System.out.println("getRowCount: caught an IOException: " + ioe.getMessage());
-			toReturn = 1;
+			toReturn = 2;
 		}
 	
 		catch (GeneralSecurityException gse)
@@ -200,9 +209,48 @@ public class WOFController {
 			toReturn = 2;
 		}
 
+		catch (DateTimeParseException dtpe)
+		{
+			System.out.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+			toReturn = 4;
+		}
+
 		finally
 		{
 			return toReturn;
+		}
+	}
+
+	/*
+	* @desc Parses dateStr into a LocalDate object.
+	* @param dateStr The string representing the date to parse into an object.
+	* @returns A LocalDate object representing the parsed date.
+	*/
+	LocalDate parseDate(String dateStr)
+	{
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+		return LocalDate.parse(dateStr, formatter);
+	}
+
+	/*
+	* @desc Validates whether or not dateStr contains text that can be converted to a LocalDate.
+	* @param dateStr The string whose contents this function shall validate.
+	* @returns True if the dateStr can be converted to a valid LocalDate, false otherwise.
+	*/
+	boolean isValidDate(String dateStr)
+	{
+		try
+		{
+			//System.out.println("isValidDate: checking \"" + dateStr + "\"");
+			parseDate(dateStr); // A date is valid if we can parse it using our function.
+			//System.out.println("isValidDate: \"" + dateStr + "\" represents a valid date.");
+			return true; // We know that the string can be successfully parsed, if we got here.
+		}
+
+		catch (DateTimeParseException dtpe) // The string contains invalid data
+		{
+			System.out.println("isValidDate: \"" + dateStr + "\" represents an invalid date.");
+			return false;
 		}
 	}
 }
