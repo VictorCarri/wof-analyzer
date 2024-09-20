@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -42,7 +43,8 @@ import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.BatchGetValuesResponse;
 
 @RestController
-public class WOFController {
+public class WOFController
+{
 	//private static final String APPLICATION_NAME = "WOF Stats Counter";
 	private final String APPLICATION_NAME;
 
@@ -166,6 +168,7 @@ public class WOFController {
 			ListIterator<List<Object>> date2DIt = dateObj2DList.listIterator();
 			ListIterator<List<Object>> spin2DIt = spinObj2DList.listIterator();
 			System.out.println("getRowCount: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
+			HashMap<LocalDate, SpinValue> spinsMap; // Used to map dates to spin values
 
 			/* Iterate over the 2 lists simultaneously */
 			while (date2DIt.hasNext() && spin2DIt.hasNext()) // Keep looping until we reach the last pair of items
@@ -249,7 +252,7 @@ public class WOFController {
 
 		catch (DateTimeParseException dtpe) // The string contains invalid data
 		{
-			System.out.println("isValidDate: \"" + dateStr + "\" represents an invalid date.");
+			//System.out.println("isValidDate: \"" + dateStr + "\" represents an invalid date.");
 			return false;
 		}
 	}
