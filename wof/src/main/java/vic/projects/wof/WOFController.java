@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.lang.EnumConstantNotPresentException;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -193,6 +194,7 @@ public class WOFController
 					{
 						LocalDate dateObj = parseDate(curDate.toString());
 						System.out.println("\t" + dateObj + "\t|\t" + curSpin);
+						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
 					}
 				}
 			}
@@ -216,6 +218,12 @@ public class WOFController
 		{
 			System.out.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
 			toReturn = 4;
+		}
+
+		catch (EnumConstantNotPresentException ecnpe)
+		{
+			System.out.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+			toReturn = 5;
 		}
 
 		finally
