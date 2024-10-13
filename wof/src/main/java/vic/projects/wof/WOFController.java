@@ -16,6 +16,8 @@ import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.lang.EnumConstantNotPresentException;
+import java.lang.Exception;
+import java.util.regex.PatternSyntaxException;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -199,31 +201,43 @@ public class WOFController
 				}
 			}
 
-			toReturn = 1;
+			toReturn = 0;
 		}
 
 		catch (IOException ioe)
 		{
 			System.out.println("getRowCount: caught an IOException: " + ioe.getMessage());
-			toReturn = 2;
+			toReturn = -1;
 		}
 	
 		catch (GeneralSecurityException gse)
 		{
 			System.out.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
-			toReturn = 2;
+			toReturn = -2;
 		}
 
 		catch (DateTimeParseException dtpe)
 		{
 			System.out.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
-			toReturn = 4;
+			toReturn = -3;
 		}
 
 		catch (EnumConstantNotPresentException ecnpe)
 		{
 			System.out.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
-			toReturn = 5;
+			toReturn = -4;
+		}
+
+		catch (PatternSyntaxException pse)
+		{
+			System.out.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+			toReturn = -5;
+		}
+
+		catch (Exception otherEx)
+		{
+			System.out.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+			toReturn = -6;
 		}
 
 		finally
