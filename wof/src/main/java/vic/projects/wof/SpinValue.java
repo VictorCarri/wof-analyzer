@@ -38,30 +38,30 @@ public enum SpinValue
 	public static SpinValue strToVal(String name) throws EnumConstantNotPresentException
 	{
 		/* All of the patterns we need */
-		Pattern firstAInAmericasPat = Pattern.compile("^First +A +in +AMERICA'S$", Pattern.CASE_INSENSITIVE);
+		Pattern firstAInAmericasPat = Pattern.compile("^(Fir|1)st +A +in +AMERICA('S)?$", Pattern.CASE_INSENSITIVE);
 		Pattern mInAmericasPat = Pattern.compile("^M +(in|of) +AMERICA('S)?$", Pattern.CASE_INSENSITIVE);
-		Pattern eInAmericasPat = Pattern.compile("^e +in +america's$", Pattern.CASE_INSENSITIVE);
-		Pattern rPat = Pattern.compile("^r{1}+|r +in +america's$", Pattern.CASE_INSENSITIVE);
-		Pattern iInAmericasPat = Pattern.compile("^i +in +AMERICA'S$", Pattern.CASE_INSENSITIVE);
-		Pattern cPat = Pattern.compile("^(c{1}|c (of|in) america)+$", Pattern.CASE_INSENSITIVE);
-		Pattern secondAInAmericasPat = Pattern.compile("^Second +A +in +AMERICA'S$", Pattern.CASE_INSENSITIVE);
+		Pattern eInAmericasPat = Pattern.compile("^e +(in|of) +america('s)?$", Pattern.CASE_INSENSITIVE);
+		Pattern rPat = Pattern.compile("^r{1}+|r +(in|of) +america('s)?$", Pattern.CASE_INSENSITIVE);
+		Pattern iInAmericasPat = Pattern.compile("^i +(in|of) +AMERICA('S)?$", Pattern.CASE_INSENSITIVE);
+		Pattern cPat = Pattern.compile("^c{1}|c (of|in) america('s)?+$", Pattern.CASE_INSENSITIVE);
+		Pattern secondAInAmericasPat = Pattern.compile("^((Seco|2)nd|Last|Final) +'?A'? +(in|of) +AMERICA('S)?$", Pattern.CASE_INSENSITIVE);
 		Pattern aposPat = Pattern.compile("^'|apostrophe$", Pattern.CASE_INSENSITIVE);
 		Pattern sInAmericasPat = Pattern.compile("^S +(in|of) +AMERICA'S$", Pattern.CASE_INSENSITIVE);
-		Pattern singleStarPat = Pattern.compile("^(Single +star|Lone +star|1 +star|One +star|\\* before game)$", Pattern.CASE_INSENSITIVE);
+		Pattern singleStarPat = Pattern.compile("^Single +(star|asterisk|\\*)|(1|One|Lone) +star|\\* before game|\\* after America's|\\* between America's and Game|\\*$", Pattern.CASE_INSENSITIVE);
 		Pattern gPat = Pattern.compile("^g{1}+$", Pattern.CASE_INSENSITIVE);
 		Pattern aInGamePat = Pattern.compile("^a +(in|of) +game$", Pattern.CASE_INSENSITIVE);
 		Pattern mInGamePat = Pattern.compile("^m +(in|of) +game$", Pattern.CASE_INSENSITIVE);
 		Pattern eInGamePat = Pattern.compile("^e +(in|of) +game$", Pattern.CASE_INSENSITIVE);
-		Pattern doubleStarPat = Pattern.compile("^(double +star|2 +stars|two stars between game and show|\\*\\* 2 stars|two stars|\\*\\*)$", Pattern.CASE_INSENSITIVE);
+		Pattern doubleStarPat = Pattern.compile("^(double +star|2 +stars|two stars between game and show|\\*\\* 2 stars|two stars|\\*\\*||\\*\\* between Game and Spin)$", Pattern.CASE_INSENSITIVE);
 		Pattern sInSpinPat = Pattern.compile("^s +(in|of) +spin$", Pattern.CASE_INSENSITIVE);
 		Pattern pPat = Pattern.compile("^p{1}+|p +(of|in) +spin$", Pattern.CASE_INSENSITIVE);
 		Pattern iInSpinPat = Pattern.compile("^i +(in|of) +spin$", Pattern.CASE_INSENSITIVE);
-		Pattern nInSpinPat = Pattern.compile("^n +in +spin$", Pattern.CASE_INSENSITIVE);
-		Pattern ampPat = Pattern.compile("^(ampersand|&)$", Pattern.CASE_INSENSITIVE);
-		Pattern wPat = Pattern.compile("^(w{1}+|w in win)$", Pattern.CASE_INSENSITIVE);
+		Pattern nInSpinPat = Pattern.compile("^n +(in|of) +spin$", Pattern.CASE_INSENSITIVE);
+		Pattern ampPat = Pattern.compile("^(ampersand|&|& between Spin & Win)$", Pattern.CASE_INSENSITIVE);
+		Pattern wPat = Pattern.compile("^(w{1}+|w (in|of) win)$", Pattern.CASE_INSENSITIVE);
 		Pattern iInWinPat = Pattern.compile("^i +(in|of) +win$", Pattern.CASE_INSENSITIVE);
 		Pattern nInWinPat = Pattern.compile("^n{1} *(in|of) *win$", Pattern.CASE_INSENSITIVE);
-		Pattern tripleStarPat = Pattern.compile("^triple +star$", Pattern.CASE_INSENSITIVE);
+		Pattern tripleStarPat = Pattern.compile("^(t(riple|hree) +star[s]?)|\\*\\*\\*$", Pattern.CASE_INSENSITIVE);
 
 		/* Clean up the string */
 		String trimmedName = name.trim(); // Remove leading and trailing whitespace
