@@ -9,7 +9,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
-public class WofServiceApplication {
+public class WofServiceApplication
+{
 
 	public static void main(String[] args) {
 		SpringApplication.run(WofServiceApplication.class, args);
