@@ -197,11 +197,10 @@ public class WOFController
 						LocalDate dateObj = parseDate(curDate.toString());
 						System.out.println("\t" + dateObj + "\t|\t" + curSpin);
 						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
+						++toReturn;
 					}
 				}
 			}
-
-			toReturn = 0;
 		}
 
 		catch (IOException ioe)
