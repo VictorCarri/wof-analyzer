@@ -67,3 +67,4 @@ out/
 client_secret*.json
 credentials.json
 ./wof/tokens/*
+.*/.*httpTest.*

@@ -25,6 +25,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.web.bind.annotation.PathVariable;
 
 /* Google */
 import com.google.api.client.auth.oauth2.Credential;
@@ -205,37 +206,37 @@ public class WOFController
 
 		catch (IOException ioe)
 		{
-			System.out.println("getRowCount: caught an IOException: " + ioe.getMessage());
+			System.err.println("getRowCount: caught an IOException: " + ioe.getMessage());
 			toReturn = -1;
 		}
 	
 		catch (GeneralSecurityException gse)
 		{
-			System.out.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
+			System.err.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
 			toReturn = -2;
 		}
 
 		catch (DateTimeParseException dtpe)
 		{
-			System.out.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+			System.err.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
 			toReturn = -3;
 		}
 
 		catch (EnumConstantNotPresentException ecnpe)
 		{
-			System.out.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+			System.err.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
 			toReturn = -4;
 		}
 
 		catch (PatternSyntaxException pse)
 		{
-			System.out.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+			System.err.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
 			toReturn = -5;
 		}
 
 		catch (Exception otherEx)
 		{
-			System.out.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+			System.err.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
 			toReturn = -6;
 		}
 
@@ -276,5 +277,40 @@ public class WOFController
 			//System.out.println("isValidDate: \"" + dateStr + "\" represents an invalid date.");
 			return false;
 		}
+	}
+
+	@GetMapping("/{spinVals}/percentage")
+	public double getPercentage(@PathVariable String[] spinVals)
+	{
+		//System.out.println("getPercentage: spinVals = \"" + spinVals + "\"");
+		System.out.println("getPercentage: spinVals = [");
+
+		for (String val : spinVals)
+		{
+			System.out.println("\t" + val);
+		}
+
+		System.out.println("]");
+
+		/*
+		* Step 1: try to convert the strings to spin values.
+		*/
+		try
+		{
+			ArrayList<SpinValue> spinVals;
+	
+			for (String val : spinVals)
+			{
+				spinVals.add(SpinValue.strToVal(val));
+			}
+		}
+
+		catch (EnumConstantNotPresentException ecnpe) // Invalid spin value
+		{
+			System.err.println("getPercentage: caught an invalid spin value in my input: \"" + ecnpe.getMessage() + "\"");
+			return (double)(-1);
+		}
+
+		return (double)(0);
 	}
 }
