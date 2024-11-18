@@ -280,12 +280,11 @@ public class WOFController
 	}
 
 	@GetMapping("/{spinVals}/percentage")
-	public double getPercentage(@PathVariable String[] spinVals)
+	public double getPercentage(@PathVariable String[] spinValInps)
 	{
-		//System.out.println("getPercentage: spinVals = \"" + spinVals + "\"");
-		System.out.println("getPercentage: spinVals = [");
+		System.out.println("getPercentage: spinValInpss = [");
 
-		for (String val : spinVals)
+		for (String val : spinValInps)
 		{
 			System.out.println("\t" + val);
 		}
@@ -297,9 +296,9 @@ public class WOFController
 		*/
 		try
 		{
-			ArrayList<SpinValue> spinVals;
+			ArrayList<SpinValue> spinVals = new ArrayList<SpinValue>();
 	
-			for (String val : spinVals)
+			for (String val : spinValInps)
 			{
 				spinVals.add(SpinValue.strToVal(val));
 			}
