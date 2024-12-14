@@ -279,35 +279,134 @@ public class WOFController
 		}
 	}
 
-	@GetMapping("/{spinVals}/percentage")
-	public double getPercentage(@PathVariable String[] spinValInps)
+	@GetMapping("/percentage/{spinVals}")
+	public double getPercentage(@PathVariable List<String> spinVals)
 	{
-		System.out.println("getPercentage: spinValInpss = [");
+		ArrayList<SpinValue> querySpinVals = new ArrayList<SpinValue>(); // To hold the converted values
+		ListIterator<String> spinValStrsIt = spinVals.listIterator();
+		int i = 0;
 
-		for (String val : spinValInps)
+		while (spinValStrsIt.hasNext())
 		{
-			System.out.println("\t" + val);
+			String curVal = spinValStrsIt.next();
+			System.out.println(curVal);
+			querySpinVals.add(SpinValue.strToVal(curVal));
+			++i;
 		}
 
-		System.out.println("]");
-
-		/*
-		* Step 1: try to convert the strings to spin values.
-		*/
+		// TODO: adapt the following code to calculate what percentage of my recorded spin values match any of the spin values we received as input.
 		try
 		{
-			ArrayList<SpinValue> spinVals = new ArrayList<SpinValue>();
-	
-			for (String val : spinValInps)
+			/* Load pre-authoized user credentials from the enironment */
+			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+			System.out.println("getRowCount: created a new trusted transport");
+		
+			/* Create the sheets service we'll fetch data from Google with */
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+				.setApplicationName(APPLICATION_NAME)
+				.build();
+			System.out.println("getRowCount: created a new sheets service.");
+
+			/* Get both sets of columns in a single batch response */
+			BatchGetValuesResponse readResult = service.spreadsheets().values()
+				.batchGet(spreadsheetId)
+				.setRanges(ranges)
+				.execute();
+			System.out.println("getRowCount: fetched a new batch of values.");
+
+			/* Get the list of results */
+			List<ValueRange> valueRangeList = readResult.getValueRanges();
+
+			for (ValueRange curRange : valueRangeList)
 			{
-				spinVals.add(SpinValue.strToVal(val));
+				System.out.println("RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
+			}
+
+			/* Get the objects that each correspond to 1 column of the response to our batch get request */
+			ValueRange dateRange = valueRangeList.get(0);
+			ValueRange spinRange = valueRangeList.get(1);
+			System.out.println("getRowCount: fetched the ValueRange that corresponds to each column.");
+			
+			/* Get the lists of lists that contain the actual data */
+			List<List<Object>> dateObj2DList = dateRange.getValues();
+			List<List<Object>> spinObj2DList = spinRange.getValues();
+			System.out.println("getRowCount: converted each valuerange to a 2D list containing its data.");
+
+			/* Get an iterator over each list of lists */
+			ListIterator<List<Object>> date2DIt = dateObj2DList.listIterator();
+			ListIterator<List<Object>> spin2DIt = spinObj2DList.listIterator();
+			System.out.println("getRowCount: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
+			HashMap<LocalDate, SpinValue> spinsMap; // Used to map dates to spin values
+
+			/* Iterate over the 2 lists simultaneously */
+			while (date2DIt.hasNext() && spin2DIt.hasNext()) // Keep looping until we reach the last pair of items
+			{
+				/* Fetch the current sub-lists */
+				List<Object> curDateList = date2DIt.next();
+				List<Object> curSpinList = spin2DIt.next();
+
+				/* Get an iterator over each sub-list */
+				ListIterator<Object> dateIt = curDateList.listIterator();
+				ListIterator<Object> spinIt = curSpinList.listIterator();
+
+				/* Loop over the contents of the sublist (i.e., the cells) */
+				while (dateIt.hasNext() && spinIt.hasNext())
+				{
+					/* Fetch the next date and the next spin */
+					Object curDate = dateIt.next();
+					Object curSpin = spinIt.next();
+					//System.out.println(curDate + "\t|\t" + curSpin);
+
+					if (isValidDate(curDate.toString()))
+					{
+						LocalDate dateObj = parseDate(curDate.toString());
+						System.out.println("\t" + dateObj + "\t|\t" + curSpin);
+						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
+						++toReturn;
+					}
+				}
 			}
 		}
 
-		catch (EnumConstantNotPresentException ecnpe) // Invalid spin value
+		catch (IOException ioe)
 		{
-			System.err.println("getPercentage: caught an invalid spin value in my input: \"" + ecnpe.getMessage() + "\"");
-			return (double)(-1);
+			System.err.println("getRowCount: caught an IOException: " + ioe.getMessage());
+			toReturn = -1;
+		}
+	
+		catch (GeneralSecurityException gse)
+		{
+			System.err.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
+			toReturn = -2;
+		}
+
+		catch (DateTimeParseException dtpe)
+		{
+			System.err.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+			toReturn = -3;
+		}
+
+		catch (EnumConstantNotPresentException ecnpe)
+		{
+			System.err.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+			toReturn = -4;
+		}
+
+		catch (PatternSyntaxException pse)
+		{
+			System.err.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+			toReturn = -5;
+		}
+
+		catch (Exception otherEx)
+		{
+			System.err.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+			toReturn = -6;
+		}
+
+		finally
+		{
+			return toReturn;
 		}
 
 		return (double)(0);
