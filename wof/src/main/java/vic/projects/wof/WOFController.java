@@ -282,9 +282,10 @@ public class WOFController
 	@GetMapping("/percentage/{spinVals}")
 	public double getPercentage(@PathVariable List<String> spinVals)
 	{
-		ArrayList<SpinValue> querySpinVals = new ArrayList<SpinValue>(); // To hold the converted values
+		Collection<SpinValue> querySpinVals = new Set<SpinValue>(); // To hold the converted values
 		ListIterator<String> spinValStrsIt = spinVals.listIterator();
-		int i = 0;
+		long total = 0;
+		long nMatching = 0;
 
 		while (spinValStrsIt.hasNext())
 		{
@@ -299,20 +300,20 @@ public class WOFController
 		{
 			/* Load pre-authoized user credentials from the enironment */
 			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-			System.out.println("getRowCount: created a new trusted transport");
+			System.out.println("getPercentage: created a new trusted transport");
 		
 			/* Create the sheets service we'll fetch data from Google with */
 			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
 				.setApplicationName(APPLICATION_NAME)
 				.build();
-			System.out.println("getRowCount: created a new sheets service.");
+			System.out.println("getPercentage: created a new sheets service.");
 
 			/* Get both sets of columns in a single batch response */
 			BatchGetValuesResponse readResult = service.spreadsheets().values()
 				.batchGet(spreadsheetId)
 				.setRanges(ranges)
 				.execute();
-			System.out.println("getRowCount: fetched a new batch of values.");
+			System.out.println("getPercentage: fetched a new batch of values.");
 
 			/* Get the list of results */
 			List<ValueRange> valueRangeList = readResult.getValueRanges();
@@ -325,17 +326,17 @@ public class WOFController
 			/* Get the objects that each correspond to 1 column of the response to our batch get request */
 			ValueRange dateRange = valueRangeList.get(0);
 			ValueRange spinRange = valueRangeList.get(1);
-			System.out.println("getRowCount: fetched the ValueRange that corresponds to each column.");
+			System.out.println("getPercentage: fetched the ValueRange that corresponds to each column.");
 			
 			/* Get the lists of lists that contain the actual data */
 			List<List<Object>> dateObj2DList = dateRange.getValues();
 			List<List<Object>> spinObj2DList = spinRange.getValues();
-			System.out.println("getRowCount: converted each valuerange to a 2D list containing its data.");
+			System.out.println("getPercentage: converted each valuerange to a 2D list containing its data.");
 
 			/* Get an iterator over each list of lists */
 			ListIterator<List<Object>> date2DIt = dateObj2DList.listIterator();
 			ListIterator<List<Object>> spin2DIt = spinObj2DList.listIterator();
-			System.out.println("getRowCount: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
+			System.out.println("getPercentage: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
 			HashMap<LocalDate, SpinValue> spinsMap; // Used to map dates to spin values
 
 			/* Iterate over the 2 lists simultaneously */
@@ -362,7 +363,13 @@ public class WOFController
 						LocalDate dateObj = parseDate(curDate.toString());
 						System.out.println("\t" + dateObj + "\t|\t" + curSpin);
 						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
-						++toReturn;
+						
+						if (querySpinVals.contains(curSpinValue)) // This was one of the values the user asked us to count
+						{
+							nMatching++;
+						}
+
+						total++;
 					}
 				}
 			}
