@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.lang.EnumConstantNotPresentException;
 import java.lang.Exception;
 import java.util.regex.PatternSyntaxException;
+import java.util.Collection;
+import java.util.HashSet;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -282,17 +284,17 @@ public class WOFController
 	@GetMapping("/percentage/{spinVals}")
 	public double getPercentage(@PathVariable List<String> spinVals)
 	{
-		Collection<SpinValue> querySpinVals = new Set<SpinValue>(); // To hold the converted values
+		Collection<SpinValue> querySpinVals = new HashSet<SpinValue>();
 		ListIterator<String> spinValStrsIt = spinVals.listIterator();
 		long total = 0;
 		long nMatching = 0;
+		double toReturn = 0.0;
 
 		while (spinValStrsIt.hasNext())
 		{
 			String curVal = spinValStrsIt.next();
-			System.out.println(curVal);
+			System.out.println("getPercentage: adding \"" + curVal + "\" to the HashSet");
 			querySpinVals.add(SpinValue.strToVal(curVal));
-			++i;
 		}
 
 		// TODO: adapt the following code to calculate what percentage of my recorded spin values match any of the spin values we received as input.
@@ -320,7 +322,7 @@ public class WOFController
 
 			for (ValueRange curRange : valueRangeList)
 			{
-				System.out.println("RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
+				System.out.println("getPercentage: RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
 			}
 
 			/* Get the objects that each correspond to 1 column of the response to our batch get request */
@@ -356,23 +358,30 @@ public class WOFController
 					/* Fetch the next date and the next spin */
 					Object curDate = dateIt.next();
 					Object curSpin = spinIt.next();
-					//System.out.println(curDate + "\t|\t" + curSpin);
+					System.out.println("getPercentage: " + curDate + "\t|\t" + curSpin);
 
 					if (isValidDate(curDate.toString()))
 					{
 						LocalDate dateObj = parseDate(curDate.toString());
-						System.out.println("\t" + dateObj + "\t|\t" + curSpin);
+						System.out.println("getPercentage: \t" + dateObj + "\t|\t" + curSpin);
 						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
+						System.out.println("getPercentage: converted the string \"" + curSpin + "\" to the enum value " + curSpinValue);
 						
 						if (querySpinVals.contains(curSpinValue)) // This was one of the values the user asked us to count
 						{
+							System.out.println("getPercentage: the set of requested spin values contains the spin value " + curSpinValue);
 							nMatching++;
+							System.out.println("getPercentage: nMatching now = " + nMatching);
 						}
 
 						total++;
+						System.out.println("getPercentage: total now = " + total);
 					}
 				}
 			}
+
+			toReturn = (double)(nMatching/total);
+			System.out.println("getPercentage: toReturn = (double)(" + nMatching + "/" + total + ") = (double)(" + nMatching/total + ") = " + (double)(nMatching/total));
 		}
 
 		catch (IOException ioe)
@@ -413,9 +422,8 @@ public class WOFController
 
 		finally
 		{
+			System.out.println("getRowCount: returning " + toReturn);
 			return toReturn;
 		}
-
-		return (double)(0);
 	}
 }

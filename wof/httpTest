@@ -1,5 +1,6 @@
 #!/bin/bash
 
 curl localhost:8080/count
+echo
 curl localhost:8080/percentage/I%20in%20ICA%2CC%2CSecond%20A%20in%20AMERICA%27S
 #curl -d "" -X POST -H "Content-Type: application/x-www-form-urlencoded" localhost:8080 
