@@ -371,17 +371,16 @@ public class WOFController
 						{
 							System.out.println("getPercentage: the set of requested spin values contains the spin value " + curSpinValue);
 							nMatching++;
-							System.out.println("getPercentage: nMatching now = " + nMatching);
 						}
 
 						total++;
-						System.out.println("getPercentage: total now = " + total);
+						System.out.println("getPercentage: total now = " + total + "\n\tnMatching now = " + nMatching);
 					}
 				}
 			}
 
-			toReturn = (double)(nMatching/total);
-			System.out.println("getPercentage: toReturn = (double)(" + nMatching + "/" + total + ") = (double)(" + nMatching/total + ") = " + (double)(nMatching/total));
+			toReturn = 100.0 * nMatching/total;
+			System.out.println("getPercentage: toReturn = 100.0 * " + nMatching + "/" + total + " = 1.0 * " + nMatching/total + ") = " + 100.0 * nMatching/total);
 		}
 
 		catch (IOException ioe)
