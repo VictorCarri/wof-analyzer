@@ -38,3 +38,7 @@ test {
 	useJUnitPlatform()
 }
 
+bootJar {
+//	baseName = "SpringBoot"
+	version = '0.0.1-SNAPSHOT'
+}

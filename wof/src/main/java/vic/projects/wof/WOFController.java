@@ -297,7 +297,6 @@ public class WOFController
 			querySpinVals.add(SpinValue.strToVal(curVal));
 		}
 
-		// TODO: adapt the following code to calculate what percentage of my recorded spin values match any of the spin values we received as input.
 		try
 		{
 			/* Load pre-authoized user credentials from the enironment */
@@ -380,7 +379,7 @@ public class WOFController
 			}
 
 			toReturn = 100.0 * nMatching/total;
-			System.out.println("getPercentage: toReturn = 100.0 * " + nMatching + "/" + total + " = 1.0 * " + nMatching/total + ") = " + 100.0 * nMatching/total);
+			System.out.println("getPercentage: toReturn = 100.0 * " + nMatching + "/" + total + " = 100.0 * " + 1.0 * nMatching/total + " = " + 100.0 * nMatching/total);
 		}
 
 		catch (IOException ioe)
