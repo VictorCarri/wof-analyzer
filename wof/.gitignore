@@ -38,3 +38,5 @@ out/
 
 # Tokens directory
 tokens/
+
+src/main/resources/*.json

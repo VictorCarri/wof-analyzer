@@ -1,0 +1,3 @@
+#!/bin/bash
+
+eb ssh --profile wheelOfFortune --region ca-central-1 Wof-spring-boot-test-env 

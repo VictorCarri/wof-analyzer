@@ -44,6 +44,8 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.BatchGetValuesResponse;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.http.HttpCredentialsAdapter;
 
 @RestController
 public class WOFController
@@ -76,7 +78,8 @@ public class WOFController
 		this.TOKENS_DIRECTORY_PATH = "tokens";
 		//this.SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
 		this.SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS_READONLY);
-		this.credsFilePath = "static/credentials.json";
+		this.credsFilePath = "static/creds2.json";
+		this.serviceAccCredsPath = "static/service-account-creds-1.json";
 		this.spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
 		String[] strRanges = {"'Raw data'!B:B", "'Raw data'!C:C"}; 
 		this.ranges = new ArrayList(Arrays.asList(strRanges)); // The date & value columns
@@ -122,6 +125,23 @@ public class WOFController
 		return toReturn;
 	}
 
+	private HttpCredentialsAdapter getServiceAccountCreds(final NetHttpTransport HTTP_TRANSPORT) throws IOException
+	{
+		ClassPathResource credsFileResource = new ClassPathResource(serviceAccCredsPath);
+		System.out.println("Credentials file's absolute path: " + credsFileResource.getPath() + "\nWorking directory: " + System.getProperty("user.dir") + "\nClasspath: " + System.getProperty("java.class.path") + "\nResource description: "
+			+ credsFileResource.getDescription()
+		);
+		InputStream fin = credsFileResource.getInputStream();
+		System.out.println("getServiceAccountCreds: fetched the resource's input stream");
+		
+		if (fin == null) {
+			throw new FileNotFoundException("Resource not found: " + credsFilePath);
+		}
+
+		GoogleCredentials creds = GoogleCredentials.fromStream(fin).createScoped(SCOPES);
+		return new HttpCredentialsAdapter(creds);
+	}
+
 	/**
 	* @desc Counts how many entries I've made in the spreadsheet.
 	* @return An integral count of how many *complete* entries I've made in the spreadsheet.
@@ -137,7 +157,8 @@ public class WOFController
 			System.out.println("getRowCount: created a new trusted transport");
 		
 			/* Create the sheets service we'll fetch data from Google with */
-			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
 				.setApplicationName(APPLICATION_NAME)
 				.build();
 			System.out.println("getRowCount: created a new sheets service.");
