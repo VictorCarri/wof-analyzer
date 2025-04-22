@@ -20,6 +20,7 @@ import java.lang.Exception;
 import java.util.regex.PatternSyntaxException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.io.FileInputStream;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -47,6 +48,8 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.BatchGetValuesResponse;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.http.HttpCredentialsAdapter;
 
 @RestController
 public class WOFController
@@ -68,6 +71,7 @@ public class WOFController
 	private final String credsFilePath;
 	private final String spreadsheetId;
 	private final ArrayList<String> ranges;
+	private final String serviceAccCredsPath;
 
 	/*
 	* @desc Constructor. Creates the class and initializes our properties.
@@ -80,6 +84,7 @@ public class WOFController
 		//this.SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
 		this.SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS_READONLY);
 		this.credsFilePath = "static/credentials.json";
+		this.serviceAccCredsPath = "static/serviceAccCreds.json";
 		this.spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
 		String[] strRanges = {"'Raw data'!B:B", "'Raw data'!C:C"}; 
 		this.ranges = new ArrayList(Arrays.asList(strRanges)); // The date & value columns
@@ -97,7 +102,7 @@ public class WOFController
 	* @throws IOException If it can't find the credentials.json file.
 	*/
 	private Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
-	//	FileInputStream in = (FileInputStream)WOFController.class.getResourceAsStream(credsFilePath);
+		FileInputStream in = (FileInputStream)WOFController.class.getResourceAsStream(credsFilePath);
 		ClassPathResource credsFileResource = new ClassPathResource(credsFilePath);
 		System.out.println("Credentials file's absolute path: " + credsFileResource.getPath() + "\nWorking directory: " + System.getProperty("user.dir") + "\nClasspath: " + System.getProperty("java.class.path") + "\nResource description: "
 			+ credsFileResource.getDescription()
@@ -118,11 +123,28 @@ public class WOFController
 			.setAccessType("offline")
 			.build();
 		System.out.println("getCredentials: created a new Google authorization code flow");
-		LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
+		LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8887).build();
 		System.out.println("getCredentials: created a new local server receiver");
 		Credential toReturn = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
 		System.out.println("getCredentials: created a new credential object.");
 		return toReturn;
+	}
+
+	private HttpCredentialsAdapter getServiceAccountCreds(final NetHttpTransport HTTP_TRANSPORT) throws IOException
+	{
+		ClassPathResource credsFileResource = new ClassPathResource(serviceAccCredsPath);
+		System.out.println("Credentials file's absolute path: " + credsFileResource.getPath() + "\nWorking directory: " + System.getProperty("user.dir") + "\nClasspath: " + System.getProperty("java.class.path") + "\nResource description: "
+			+ credsFileResource.getDescription()
+		);
+		InputStream fin = credsFileResource.getInputStream();
+		System.out.println("getServiceAccountCreds: fetched the resource's input stream");
+		
+		if (fin == null) {
+			throw new FileNotFoundException("Resource not found: " + credsFilePath);
+		}
+
+		GoogleCredentials creds = GoogleCredentials.fromStream(fin).createScoped(SCOPES);
+		return new HttpCredentialsAdapter(creds);
 	}
 
 	/**
@@ -140,7 +162,8 @@ public class WOFController
 			System.out.println("getRowCount: created a new trusted transport");
 		
 			/* Create the sheets service we'll fetch data from Google with */
-			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
 				.setApplicationName(APPLICATION_NAME)
 				.build();
 			System.out.println("getRowCount: created a new sheets service.");
@@ -304,7 +327,8 @@ public class WOFController
 			System.out.println("getPercentage: created a new trusted transport");
 		
 			/* Create the sheets service we'll fetch data from Google with */
-			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
 				.setApplicationName(APPLICATION_NAME)
 				.build();
 			System.out.println("getPercentage: created a new sheets service.");

@@ -64,7 +64,7 @@ out/
 .*.swp
 *.swp
 
-client_secret*.json
-credentials.json
 ./wof/tokens/*
 .*/.*httpTest.*
+
+wof/src/main/resources/static/*.json

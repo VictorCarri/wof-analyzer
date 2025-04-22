@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd ~/Programming/Java/wof-analyzer/wof
+./gradlew bootJar
