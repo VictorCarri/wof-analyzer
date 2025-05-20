@@ -41,3 +41,4 @@ tokens/
 
 # AWS
 useEb
+.ebextensions

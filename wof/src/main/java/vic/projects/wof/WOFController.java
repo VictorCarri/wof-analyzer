@@ -21,6 +21,7 @@ import java.util.regex.PatternSyntaxException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.io.FileInputStream;
+import jakarta.servlet.http.HttpServletResponse;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -90,8 +91,21 @@ public class WOFController
 		this.ranges = new ArrayList(Arrays.asList(strRanges)); // The date & value columns
 	}
 
+	/*
+	* @desc Adds CORS (and other) headers to the response.
+	*/
+	public void addHeaders(HttpServletResponse resp)
+	{
+		/* CORS */
+		resp.addHeader("Access-Control-Allow-Origin", "*");
+		resp.addHeader("Access-Control-Allow-Credentials", "true");
+		resp.addHeader("Access-Control-Allow-Methods", "GET");
+		resp.addHeader("Access-Control-Allow-Headers", "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type");
+	}
+
 	@GetMapping("/")
-	public String index() {
+	public String index(HttpServletResponse resp) {
+		addHeaders(resp);
 		return "Greetings from Spring Boot!";
 	}
 	
@@ -152,8 +166,9 @@ public class WOFController
 	* @return An integral count of how many *complete* entries I've made in the spreadsheet.
 	**/
 	@GetMapping("/count")
-	public int getRowCount() {
+	public int getRowCount(HttpServletResponse resp) {
 		int toReturn = 0;
+		addHeaders(resp);
 
 		try
 		{
@@ -304,9 +319,148 @@ public class WOFController
 		}
 	}
 
-	@GetMapping("/percentage/{spinVals}")
-	public double getPercentage(@PathVariable List<String> spinVals)
+	@GetMapping("/count/{spinVals}")
+	public long countSpecificValues(@PathVariable List<String> spinVals, HttpServletResponse resp)
 	{
+		addHeaders(resp);
+		Collection<SpinValue> querySpinVals = new HashSet<SpinValue>();
+		ListIterator<String> spinValStrsIt = spinVals.listIterator();
+		long toReturn = 0;
+
+		while (spinValStrsIt.hasNext())
+		{
+			String curVal = spinValStrsIt.next();
+			System.out.println("getPercentage: adding \"" + curVal + "\" to the HashSet");
+			querySpinVals.add(SpinValue.strToVal(curVal));
+		}
+
+		try
+		{
+			/* Load pre-authoized user credentials from the enironment */
+			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+			System.out.println("getPercentage: created a new trusted transport");
+		
+			/* Create the sheets service we'll fetch data from Google with */
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+				.setApplicationName(APPLICATION_NAME)
+				.build();
+			System.out.println("getPercentage: created a new sheets service.");
+
+			/* Get both sets of columns in a single batch response */
+			BatchGetValuesResponse readResult = service.spreadsheets().values()
+				.batchGet(spreadsheetId)
+				.setRanges(ranges)
+				.execute();
+			System.out.println("getPercentage: fetched a new batch of values.");
+
+			/* Get the list of results */
+			List<ValueRange> valueRangeList = readResult.getValueRanges();
+
+			for (ValueRange curRange : valueRangeList)
+			{
+				System.out.println("getPercentage: RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
+			}
+
+			/* Get the objects that each correspond to 1 column of the response to our batch get request */
+			ValueRange dateRange = valueRangeList.get(0);
+			ValueRange spinRange = valueRangeList.get(1);
+			System.out.println("getPercentage: fetched the ValueRange that corresponds to each column.");
+			
+			/* Get the lists of lists that contain the actual data */
+			List<List<Object>> dateObj2DList = dateRange.getValues();
+			List<List<Object>> spinObj2DList = spinRange.getValues();
+			System.out.println("getPercentage: converted each valuerange to a 2D list containing its data.");
+
+			/* Get an iterator over each list of lists */
+			ListIterator<List<Object>> date2DIt = dateObj2DList.listIterator();
+			ListIterator<List<Object>> spin2DIt = spinObj2DList.listIterator();
+			System.out.println("getPercentage: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
+			HashMap<LocalDate, SpinValue> spinsMap; // Used to map dates to spin values
+
+			/* Iterate over the 2 lists simultaneously */
+			while (date2DIt.hasNext() && spin2DIt.hasNext()) // Keep looping until we reach the last pair of items
+			{
+				/* Fetch the current sub-lists */
+				List<Object> curDateList = date2DIt.next();
+				List<Object> curSpinList = spin2DIt.next();
+
+				/* Get an iterator over each sub-list */
+				ListIterator<Object> dateIt = curDateList.listIterator();
+				ListIterator<Object> spinIt = curSpinList.listIterator();
+
+				/* Loop over the contents of the sublist (i.e., the cells) */
+				while (dateIt.hasNext() && spinIt.hasNext())
+				{
+					/* Fetch the next date and the next spin */
+					Object curDate = dateIt.next();
+					Object curSpin = spinIt.next();
+					System.out.println("getPercentage: " + curDate + "\t|\t" + curSpin);
+
+					if (isValidDate(curDate.toString()))
+					{
+						LocalDate dateObj = parseDate(curDate.toString());
+						System.out.println("getPercentage: \t" + dateObj + "\t|\t" + curSpin);
+						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
+						System.out.println("getPercentage: converted the string \"" + curSpin + "\" to the enum value " + curSpinValue);
+						
+						if (querySpinVals.contains(curSpinValue)) // This was one of the values the user asked us to count
+						{
+							System.out.println("getPercentage: the set of requested spin values contains the spin value " + curSpinValue);
+							toReturn++;
+						}
+					}
+				}
+			}
+		}
+
+		catch (IOException ioe)
+		{
+			System.err.println("getRowCount: caught an IOException: " + ioe.getMessage());
+			toReturn = -1;
+		}
+	
+		catch (GeneralSecurityException gse)
+		{
+			System.err.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
+			toReturn = -2;
+		}
+
+		catch (DateTimeParseException dtpe)
+		{
+			System.err.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+			toReturn = -3;
+		}
+
+		catch (EnumConstantNotPresentException ecnpe)
+		{
+			System.err.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+			toReturn = -4;
+		}
+
+		catch (PatternSyntaxException pse)
+		{
+			System.err.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+			toReturn = -5;
+		}
+
+		catch (Exception otherEx)
+		{
+			System.err.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+			toReturn = -6;
+		}
+
+		finally
+		{
+			System.out.println("getRowCount: returning " + toReturn);
+			return toReturn;
+		}
+	}
+
+	@GetMapping("/percentage/{spinVals}")
+	public double getPercentage(@PathVariable List<String> spinVals, HttpServletResponse resp)
+	{
+		addHeaders(resp);
 		Collection<SpinValue> querySpinVals = new HashSet<SpinValue>();
 		ListIterator<String> spinValStrsIt = spinVals.listIterator();
 		long total = 0;
