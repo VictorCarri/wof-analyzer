@@ -4,6 +4,7 @@ package vic.projects.wof;
 import java.lang.EnumConstantNotPresentException;
 import java.util.regex.Pattern; // For custom patterns
 import java.util.regex.Matcher; // To match my custom patterns
+import java.util.ArrayList;
 
 /**
 * @desc This enum lists the possible values the final spin wheel can take on.
@@ -34,6 +35,18 @@ public enum SpinValue
 	IInWIN,
 	NInWIN,
 	TripleStar;
+
+	public static ArrayList<String> getSpinNames()
+	{
+		ArrayList<String> toRet = new ArrayList<String>();
+
+		for (SpinValue sv : SpinValue.values())
+		{
+			toRet.add(sv.name());
+		}
+
+		return toRet;
+	}
 
 	public static SpinValue strToVal(String name) throws EnumConstantNotPresentException
 	{

@@ -602,4 +602,128 @@ public class WOFController
 			return toReturn;
 		}
 	}
+
+	@GetMapping("/countAll")
+	public HashMap<String, Long> countAll(HttpServletResponse resp)
+	{
+		addHeaders(resp);
+		long toReturn = 0;
+		HashMap<String, Long> countOfEachSpin = new HashMap<String, Long>(); // Used to count how many of each SpinValue there is
+
+		try
+		{
+			/* Load pre-authoized user credentials from the enironment */
+			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+			System.out.println("countAll: created a new trusted transport");
+		
+			/* Create the sheets service we'll fetch data from Google with */
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+				.setApplicationName(APPLICATION_NAME)
+				.build();
+			System.out.println("countAll: created a new sheets service.");
+
+			/* Get both sets of columns in a single batch response */
+			BatchGetValuesResponse readResult = service.spreadsheets().values()
+				.batchGet(spreadsheetId)
+				.setRanges(ranges)
+				.execute();
+			System.out.println("countAll: fetched a new batch of values.");
+
+			/* Get the list of results */
+			List<ValueRange> valueRangeList = readResult.getValueRanges();
+
+			for (ValueRange curRange : valueRangeList)
+			{
+				System.out.println("countAll: RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
+			}
+
+			/* Get the objects that each correspond to 1 column of the response to our batch get request */
+			ValueRange dateRange = valueRangeList.get(0);
+			ValueRange spinRange = valueRangeList.get(1);
+			System.out.println("countAll: fetched the ValueRange that corresponds to each column.");
+			
+			/* Get the lists of lists that contain the actual data */
+			List<List<Object>> dateObj2DList = dateRange.getValues();
+			List<List<Object>> spinObj2DList = spinRange.getValues();
+			System.out.println("countAll: converted each valuerange to a 2D list containing its data.");
+
+			/* Get an iterator over each list of lists */
+			ListIterator<List<Object>> date2DIt = dateObj2DList.listIterator();
+			ListIterator<List<Object>> spin2DIt = spinObj2DList.listIterator();
+			System.out.println("countAll: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
+			HashMap<LocalDate, SpinValue> spinsMap; // Used to map dates to spin values
+
+			for (String spinName : SpinValue.getSpinNames())
+			{
+				countOfEachSpin.put(spinName, (long)(0));
+			}
+
+			/* Iterate over the 2 lists simultaneously */
+			while (date2DIt.hasNext() && spin2DIt.hasNext()) // Keep looping until we reach the last pair of items
+			{
+				/* Fetch the current sub-lists */
+				List<Object> curDateList = date2DIt.next();
+				List<Object> curSpinList = spin2DIt.next();
+
+				/* Get an iterator over each sub-list */
+				ListIterator<Object> dateIt = curDateList.listIterator();
+				ListIterator<Object> spinIt = curSpinList.listIterator();
+
+				/* Loop over the contents of the sublist (i.e., the cells) */
+				while (dateIt.hasNext() && spinIt.hasNext())
+				{
+					/* Fetch the next date and the next spin */
+					Object curDate = dateIt.next();
+					Object curSpin = spinIt.next();
+					System.out.println("countAll: " + curDate + "\t|\t" + curSpin);
+
+					if (isValidDate(curDate.toString()))
+					{
+						LocalDate dateObj = parseDate(curDate.toString());
+						System.out.println("countAll: \t" + dateObj + "\t|\t" + curSpin);
+						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
+						System.out.println("countAll: converted the string \"" + curSpin + "\" to the enum value " + curSpinValue);
+						countOfEachSpin.put(curSpinValue.toString(), countOfEachSpin.get(curSpinValue.toString())+1);
+					}
+				}
+			}
+		}
+
+		catch (IOException ioe)
+		{
+			System.err.println("getRowCount: caught an IOException: " + ioe.getMessage());
+		}
+	
+		catch (GeneralSecurityException gse)
+		{
+			System.err.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
+		}
+
+		catch (DateTimeParseException dtpe)
+		{
+			System.err.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+		}
+
+		catch (EnumConstantNotPresentException ecnpe)
+		{
+			System.err.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+		}
+
+		catch (PatternSyntaxException pse)
+		{
+			System.err.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+		}
+
+		catch (Exception otherEx)
+		{
+			System.err.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+		}
+
+		finally
+		{
+			System.out.println("getRowCount: returning " + toReturn);
+			return countOfEachSpin;
+		}
+	}	
 }

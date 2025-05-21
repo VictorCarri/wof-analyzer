@@ -10,8 +10,14 @@ curl ${LOCAL_APP_URL}/percentage/I%20in%20ICA%2CC%2CSecond%20A%20in%20AMERICA%27
 echo
 curl ${LOCAL_APP_URL}/count/I%20in%20ICA
 echo
+curl ${LOCAL_APP_URL}/countAll
 echo
+
+echo
+
 echo Using remote app:
 curl ${REMOTE_APP_URL}/count
 echo
 curl ${REMOTE_APP_URL}/percentage/I%20in%20ICA%2CC%2CSecond%20A%20in%20AMERICA%27S
+echo
+curl ${REMOTE_APP_URL}/count/I%20in%20ICA
