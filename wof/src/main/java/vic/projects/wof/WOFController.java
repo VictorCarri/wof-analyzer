@@ -18,6 +18,10 @@ import java.util.HashMap;
 import java.lang.EnumConstantNotPresentException;
 import java.lang.Exception;
 import java.util.regex.PatternSyntaxException;
+import java.util.Collection;
+import java.util.HashSet;
+import java.io.FileInputStream;
+import jakarta.servlet.http.HttpServletResponse;
 
 /* Spring */
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +29,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.web.bind.annotation.PathVariable;
 
 /* Google */
 import com.google.api.client.auth.oauth2.Credential;
@@ -44,6 +49,8 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.BatchGetValuesResponse;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.http.HttpCredentialsAdapter;
 
 @RestController
 public class WOFController
@@ -65,6 +72,7 @@ public class WOFController
 	private final String credsFilePath;
 	private final String spreadsheetId;
 	private final ArrayList<String> ranges;
+	private final String serviceAccCredsPath;
 
 	/*
 	* @desc Constructor. Creates the class and initializes our properties.
@@ -77,13 +85,27 @@ public class WOFController
 		//this.SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
 		this.SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS_READONLY);
 		this.credsFilePath = "static/credentials.json";
+		this.serviceAccCredsPath = "static/serviceAccCreds.json";
 		this.spreadsheetId = "1tSL-H0RHaorufADgcG9exQEfhsNrN85ql70uomMAwFA";
 		String[] strRanges = {"'Raw data'!B:B", "'Raw data'!C:C"}; 
 		this.ranges = new ArrayList(Arrays.asList(strRanges)); // The date & value columns
 	}
 
+	/*
+	* @desc Adds CORS (and other) headers to the response.
+	*/
+	public void addHeaders(HttpServletResponse resp)
+	{
+		/* CORS */
+		resp.addHeader("Access-Control-Allow-Origin", "*");
+		resp.addHeader("Access-Control-Allow-Credentials", "true");
+		resp.addHeader("Access-Control-Allow-Methods", "GET");
+		resp.addHeader("Access-Control-Allow-Headers", "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type");
+	}
+
 	@GetMapping("/")
-	public String index() {
+	public String index(HttpServletResponse resp) {
+		addHeaders(resp);
 		return "Greetings from Spring Boot!";
 	}
 	
@@ -94,7 +116,7 @@ public class WOFController
 	* @throws IOException If it can't find the credentials.json file.
 	*/
 	private Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
-	//	FileInputStream in = (FileInputStream)WOFController.class.getResourceAsStream(credsFilePath);
+		FileInputStream in = (FileInputStream)WOFController.class.getResourceAsStream(credsFilePath);
 		ClassPathResource credsFileResource = new ClassPathResource(credsFilePath);
 		System.out.println("Credentials file's absolute path: " + credsFileResource.getPath() + "\nWorking directory: " + System.getProperty("user.dir") + "\nClasspath: " + System.getProperty("java.class.path") + "\nResource description: "
 			+ credsFileResource.getDescription()
@@ -115,11 +137,28 @@ public class WOFController
 			.setAccessType("offline")
 			.build();
 		System.out.println("getCredentials: created a new Google authorization code flow");
-		LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
+		LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8887).build();
 		System.out.println("getCredentials: created a new local server receiver");
 		Credential toReturn = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
 		System.out.println("getCredentials: created a new credential object.");
 		return toReturn;
+	}
+
+	private HttpCredentialsAdapter getServiceAccountCreds(final NetHttpTransport HTTP_TRANSPORT) throws IOException
+	{
+		ClassPathResource credsFileResource = new ClassPathResource(serviceAccCredsPath);
+		System.out.println("Credentials file's absolute path: " + credsFileResource.getPath() + "\nWorking directory: " + System.getProperty("user.dir") + "\nClasspath: " + System.getProperty("java.class.path") + "\nResource description: "
+			+ credsFileResource.getDescription()
+		);
+		InputStream fin = credsFileResource.getInputStream();
+		System.out.println("getServiceAccountCreds: fetched the resource's input stream");
+		
+		if (fin == null) {
+			throw new FileNotFoundException("Resource not found: " + credsFilePath);
+		}
+
+		GoogleCredentials creds = GoogleCredentials.fromStream(fin).createScoped(SCOPES);
+		return new HttpCredentialsAdapter(creds);
 	}
 
 	/**
@@ -127,8 +166,9 @@ public class WOFController
 	* @return An integral count of how many *complete* entries I've made in the spreadsheet.
 	**/
 	@GetMapping("/count")
-	public int getRowCount() {
+	public int getRowCount(HttpServletResponse resp) {
 		int toReturn = 0;
+		addHeaders(resp);
 
 		try
 		{
@@ -137,7 +177,8 @@ public class WOFController
 			System.out.println("getRowCount: created a new trusted transport");
 		
 			/* Create the sheets service we'll fetch data from Google with */
-			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
 				.setApplicationName(APPLICATION_NAME)
 				.build();
 			System.out.println("getRowCount: created a new sheets service.");
@@ -205,37 +246,37 @@ public class WOFController
 
 		catch (IOException ioe)
 		{
-			System.out.println("getRowCount: caught an IOException: " + ioe.getMessage());
+			System.err.println("getRowCount: caught an IOException: " + ioe.getMessage());
 			toReturn = -1;
 		}
 	
 		catch (GeneralSecurityException gse)
 		{
-			System.out.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
+			System.err.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
 			toReturn = -2;
 		}
 
 		catch (DateTimeParseException dtpe)
 		{
-			System.out.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+			System.err.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
 			toReturn = -3;
 		}
 
 		catch (EnumConstantNotPresentException ecnpe)
 		{
-			System.out.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+			System.err.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
 			toReturn = -4;
 		}
 
 		catch (PatternSyntaxException pse)
 		{
-			System.out.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+			System.err.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
 			toReturn = -5;
 		}
 
 		catch (Exception otherEx)
 		{
-			System.out.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+			System.err.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
 			toReturn = -6;
 		}
 
@@ -277,4 +318,412 @@ public class WOFController
 			return false;
 		}
 	}
+
+	@GetMapping("/count/{spinVals}")
+	public long countSpecificValues(@PathVariable List<String> spinVals, HttpServletResponse resp)
+	{
+		addHeaders(resp);
+		Collection<SpinValue> querySpinVals = new HashSet<SpinValue>();
+		ListIterator<String> spinValStrsIt = spinVals.listIterator();
+		long toReturn = 0;
+
+		while (spinValStrsIt.hasNext())
+		{
+			String curVal = spinValStrsIt.next();
+			System.out.println("getPercentage: adding \"" + curVal + "\" to the HashSet");
+			querySpinVals.add(SpinValue.strToVal(curVal));
+		}
+
+		try
+		{
+			/* Load pre-authoized user credentials from the enironment */
+			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+			System.out.println("getPercentage: created a new trusted transport");
+		
+			/* Create the sheets service we'll fetch data from Google with */
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+				.setApplicationName(APPLICATION_NAME)
+				.build();
+			System.out.println("getPercentage: created a new sheets service.");
+
+			/* Get both sets of columns in a single batch response */
+			BatchGetValuesResponse readResult = service.spreadsheets().values()
+				.batchGet(spreadsheetId)
+				.setRanges(ranges)
+				.execute();
+			System.out.println("getPercentage: fetched a new batch of values.");
+
+			/* Get the list of results */
+			List<ValueRange> valueRangeList = readResult.getValueRanges();
+
+			for (ValueRange curRange : valueRangeList)
+			{
+				System.out.println("getPercentage: RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
+			}
+
+			/* Get the objects that each correspond to 1 column of the response to our batch get request */
+			ValueRange dateRange = valueRangeList.get(0);
+			ValueRange spinRange = valueRangeList.get(1);
+			System.out.println("getPercentage: fetched the ValueRange that corresponds to each column.");
+			
+			/* Get the lists of lists that contain the actual data */
+			List<List<Object>> dateObj2DList = dateRange.getValues();
+			List<List<Object>> spinObj2DList = spinRange.getValues();
+			System.out.println("getPercentage: converted each valuerange to a 2D list containing its data.");
+
+			/* Get an iterator over each list of lists */
+			ListIterator<List<Object>> date2DIt = dateObj2DList.listIterator();
+			ListIterator<List<Object>> spin2DIt = spinObj2DList.listIterator();
+			System.out.println("getPercentage: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
+			HashMap<LocalDate, SpinValue> spinsMap; // Used to map dates to spin values
+
+			/* Iterate over the 2 lists simultaneously */
+			while (date2DIt.hasNext() && spin2DIt.hasNext()) // Keep looping until we reach the last pair of items
+			{
+				/* Fetch the current sub-lists */
+				List<Object> curDateList = date2DIt.next();
+				List<Object> curSpinList = spin2DIt.next();
+
+				/* Get an iterator over each sub-list */
+				ListIterator<Object> dateIt = curDateList.listIterator();
+				ListIterator<Object> spinIt = curSpinList.listIterator();
+
+				/* Loop over the contents of the sublist (i.e., the cells) */
+				while (dateIt.hasNext() && spinIt.hasNext())
+				{
+					/* Fetch the next date and the next spin */
+					Object curDate = dateIt.next();
+					Object curSpin = spinIt.next();
+					System.out.println("getPercentage: " + curDate + "\t|\t" + curSpin);
+
+					if (isValidDate(curDate.toString()))
+					{
+						LocalDate dateObj = parseDate(curDate.toString());
+						System.out.println("getPercentage: \t" + dateObj + "\t|\t" + curSpin);
+						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
+						System.out.println("getPercentage: converted the string \"" + curSpin + "\" to the enum value " + curSpinValue);
+						
+						if (querySpinVals.contains(curSpinValue)) // This was one of the values the user asked us to count
+						{
+							System.out.println("getPercentage: the set of requested spin values contains the spin value " + curSpinValue);
+							toReturn++;
+						}
+					}
+				}
+			}
+		}
+
+		catch (IOException ioe)
+		{
+			System.err.println("getRowCount: caught an IOException: " + ioe.getMessage());
+			toReturn = -1;
+		}
+	
+		catch (GeneralSecurityException gse)
+		{
+			System.err.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
+			toReturn = -2;
+		}
+
+		catch (DateTimeParseException dtpe)
+		{
+			System.err.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+			toReturn = -3;
+		}
+
+		catch (EnumConstantNotPresentException ecnpe)
+		{
+			System.err.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+			toReturn = -4;
+		}
+
+		catch (PatternSyntaxException pse)
+		{
+			System.err.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+			toReturn = -5;
+		}
+
+		catch (Exception otherEx)
+		{
+			System.err.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+			toReturn = -6;
+		}
+
+		finally
+		{
+			System.out.println("getRowCount: returning " + toReturn);
+			return toReturn;
+		}
+	}
+
+	@GetMapping("/percentage/{spinVals}")
+	public double getPercentage(@PathVariable List<String> spinVals, HttpServletResponse resp)
+	{
+		addHeaders(resp);
+		Collection<SpinValue> querySpinVals = new HashSet<SpinValue>();
+		ListIterator<String> spinValStrsIt = spinVals.listIterator();
+		long total = 0;
+		long nMatching = 0;
+		double toReturn = 0.0;
+
+		while (spinValStrsIt.hasNext())
+		{
+			String curVal = spinValStrsIt.next();
+			System.out.println("getPercentage: adding \"" + curVal + "\" to the HashSet");
+			querySpinVals.add(SpinValue.strToVal(curVal));
+		}
+
+		try
+		{
+			/* Load pre-authoized user credentials from the enironment */
+			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+			System.out.println("getPercentage: created a new trusted transport");
+		
+			/* Create the sheets service we'll fetch data from Google with */
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+				.setApplicationName(APPLICATION_NAME)
+				.build();
+			System.out.println("getPercentage: created a new sheets service.");
+
+			/* Get both sets of columns in a single batch response */
+			BatchGetValuesResponse readResult = service.spreadsheets().values()
+				.batchGet(spreadsheetId)
+				.setRanges(ranges)
+				.execute();
+			System.out.println("getPercentage: fetched a new batch of values.");
+
+			/* Get the list of results */
+			List<ValueRange> valueRangeList = readResult.getValueRanges();
+
+			for (ValueRange curRange : valueRangeList)
+			{
+				System.out.println("getPercentage: RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
+			}
+
+			/* Get the objects that each correspond to 1 column of the response to our batch get request */
+			ValueRange dateRange = valueRangeList.get(0);
+			ValueRange spinRange = valueRangeList.get(1);
+			System.out.println("getPercentage: fetched the ValueRange that corresponds to each column.");
+			
+			/* Get the lists of lists that contain the actual data */
+			List<List<Object>> dateObj2DList = dateRange.getValues();
+			List<List<Object>> spinObj2DList = spinRange.getValues();
+			System.out.println("getPercentage: converted each valuerange to a 2D list containing its data.");
+
+			/* Get an iterator over each list of lists */
+			ListIterator<List<Object>> date2DIt = dateObj2DList.listIterator();
+			ListIterator<List<Object>> spin2DIt = spinObj2DList.listIterator();
+			System.out.println("getPercentage: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
+			HashMap<LocalDate, SpinValue> spinsMap; // Used to map dates to spin values
+
+			/* Iterate over the 2 lists simultaneously */
+			while (date2DIt.hasNext() && spin2DIt.hasNext()) // Keep looping until we reach the last pair of items
+			{
+				/* Fetch the current sub-lists */
+				List<Object> curDateList = date2DIt.next();
+				List<Object> curSpinList = spin2DIt.next();
+
+				/* Get an iterator over each sub-list */
+				ListIterator<Object> dateIt = curDateList.listIterator();
+				ListIterator<Object> spinIt = curSpinList.listIterator();
+
+				/* Loop over the contents of the sublist (i.e., the cells) */
+				while (dateIt.hasNext() && spinIt.hasNext())
+				{
+					/* Fetch the next date and the next spin */
+					Object curDate = dateIt.next();
+					Object curSpin = spinIt.next();
+					System.out.println("getPercentage: " + curDate + "\t|\t" + curSpin);
+
+					if (isValidDate(curDate.toString()))
+					{
+						LocalDate dateObj = parseDate(curDate.toString());
+						System.out.println("getPercentage: \t" + dateObj + "\t|\t" + curSpin);
+						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
+						System.out.println("getPercentage: converted the string \"" + curSpin + "\" to the enum value " + curSpinValue);
+						
+						if (querySpinVals.contains(curSpinValue)) // This was one of the values the user asked us to count
+						{
+							System.out.println("getPercentage: the set of requested spin values contains the spin value " + curSpinValue);
+							nMatching++;
+						}
+
+						total++;
+						System.out.println("getPercentage: total now = " + total + "\n\tnMatching now = " + nMatching);
+					}
+				}
+			}
+
+			toReturn = 100.0 * nMatching/total;
+			System.out.println("getPercentage: toReturn = 100.0 * " + nMatching + "/" + total + " = 100.0 * " + 1.0 * nMatching/total + " = " + 100.0 * nMatching/total);
+		}
+
+		catch (IOException ioe)
+		{
+			System.err.println("getRowCount: caught an IOException: " + ioe.getMessage());
+			toReturn = -1;
+		}
+	
+		catch (GeneralSecurityException gse)
+		{
+			System.err.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
+			toReturn = -2;
+		}
+
+		catch (DateTimeParseException dtpe)
+		{
+			System.err.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+			toReturn = -3;
+		}
+
+		catch (EnumConstantNotPresentException ecnpe)
+		{
+			System.err.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+			toReturn = -4;
+		}
+
+		catch (PatternSyntaxException pse)
+		{
+			System.err.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+			toReturn = -5;
+		}
+
+		catch (Exception otherEx)
+		{
+			System.err.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+			toReturn = -6;
+		}
+
+		finally
+		{
+			System.out.println("getRowCount: returning " + toReturn);
+			return toReturn;
+		}
+	}
+
+	@GetMapping("/countAll")
+	public HashMap<String, Long> countAll(HttpServletResponse resp)
+	{
+		addHeaders(resp);
+		long toReturn = 0;
+		HashMap<String, Long> countOfEachSpin = new HashMap<String, Long>(); // Used to count how many of each SpinValue there is
+
+		try
+		{
+			/* Load pre-authoized user credentials from the enironment */
+			final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+			System.out.println("countAll: created a new trusted transport");
+		
+			/* Create the sheets service we'll fetch data from Google with */
+			Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getServiceAccountCreds(HTTP_TRANSPORT))
+			//Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+				.setApplicationName(APPLICATION_NAME)
+				.build();
+			System.out.println("countAll: created a new sheets service.");
+
+			/* Get both sets of columns in a single batch response */
+			BatchGetValuesResponse readResult = service.spreadsheets().values()
+				.batchGet(spreadsheetId)
+				.setRanges(ranges)
+				.execute();
+			System.out.println("countAll: fetched a new batch of values.");
+
+			/* Get the list of results */
+			List<ValueRange> valueRangeList = readResult.getValueRanges();
+
+			for (ValueRange curRange : valueRangeList)
+			{
+				System.out.println("countAll: RANGE START\n\n" + curRange + "\n\nRANGE END\n\n");
+			}
+
+			/* Get the objects that each correspond to 1 column of the response to our batch get request */
+			ValueRange dateRange = valueRangeList.get(0);
+			ValueRange spinRange = valueRangeList.get(1);
+			System.out.println("countAll: fetched the ValueRange that corresponds to each column.");
+			
+			/* Get the lists of lists that contain the actual data */
+			List<List<Object>> dateObj2DList = dateRange.getValues();
+			List<List<Object>> spinObj2DList = spinRange.getValues();
+			System.out.println("countAll: converted each valuerange to a 2D list containing its data.");
+
+			/* Get an iterator over each list of lists */
+			ListIterator<List<Object>> date2DIt = dateObj2DList.listIterator();
+			ListIterator<List<Object>> spin2DIt = spinObj2DList.listIterator();
+			System.out.println("countAll: got iterators over each outer list\n\nDATE\t|\tSPIN\n----------------------------");
+			HashMap<LocalDate, SpinValue> spinsMap; // Used to map dates to spin values
+
+			for (String spinName : SpinValue.getSpinNames())
+			{
+				countOfEachSpin.put(spinName, (long)(0));
+			}
+
+			/* Iterate over the 2 lists simultaneously */
+			while (date2DIt.hasNext() && spin2DIt.hasNext()) // Keep looping until we reach the last pair of items
+			{
+				/* Fetch the current sub-lists */
+				List<Object> curDateList = date2DIt.next();
+				List<Object> curSpinList = spin2DIt.next();
+
+				/* Get an iterator over each sub-list */
+				ListIterator<Object> dateIt = curDateList.listIterator();
+				ListIterator<Object> spinIt = curSpinList.listIterator();
+
+				/* Loop over the contents of the sublist (i.e., the cells) */
+				while (dateIt.hasNext() && spinIt.hasNext())
+				{
+					/* Fetch the next date and the next spin */
+					Object curDate = dateIt.next();
+					Object curSpin = spinIt.next();
+					System.out.println("countAll: " + curDate + "\t|\t" + curSpin);
+
+					if (isValidDate(curDate.toString()))
+					{
+						LocalDate dateObj = parseDate(curDate.toString());
+						System.out.println("countAll: \t" + dateObj + "\t|\t" + curSpin);
+						SpinValue curSpinValue = SpinValue.strToVal(curSpin.toString());
+						System.out.println("countAll: converted the string \"" + curSpin + "\" to the enum value " + curSpinValue);
+						countOfEachSpin.put(curSpinValue.toString(), countOfEachSpin.get(curSpinValue.toString())+1);
+					}
+				}
+			}
+		}
+
+		catch (IOException ioe)
+		{
+			System.err.println("getRowCount: caught an IOException: " + ioe.getMessage());
+		}
+	
+		catch (GeneralSecurityException gse)
+		{
+			System.err.println("getRowCount: caught a GeneralSecurityException: " + gse.getMessage());
+		}
+
+		catch (DateTimeParseException dtpe)
+		{
+			System.err.println("getRowCount: caught a DateTimeParseException: " + dtpe.getMessage());
+		}
+
+		catch (EnumConstantNotPresentException ecnpe)
+		{
+			System.err.println("getRowCount: caught an EnumConstantNotPresentException: " + ecnpe.getMessage());
+		}
+
+		catch (PatternSyntaxException pse)
+		{
+			System.err.println("getRowCount: caught a pattern syntax exception: " + pse.getMessage());
+		}
+
+		catch (Exception otherEx)
+		{
+			System.err.println("getRowCount: caught an unknown exception: " + otherEx.getMessage());
+		}
+
+		finally
+		{
+			System.out.println("getRowCount: returning " + toReturn);
+			return countOfEachSpin;
+		}
+	}	
 }

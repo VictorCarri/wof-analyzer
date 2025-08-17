@@ -38,3 +38,7 @@ out/
 
 # Tokens directory
 tokens/
+
+# AWS
+useEb
+.ebextensions
