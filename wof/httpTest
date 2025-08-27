@@ -1,7 +1,7 @@
 #!/bin/bash
 
 LOCAL_APP_URL=localhost:8080
-REMOTE_APP_URL=http://wof-spring-boot-test-env.eba-is45gqj2.ca-central-1.elasticbeanstalk.com
+REMOTE_APP_URL=https://wofapi.victorcarri.com
 
 echo Using local app:
 curl ${LOCAL_APP_URL}/count
@@ -12,12 +12,12 @@ curl ${LOCAL_APP_URL}/count/I%20in%20ICA
 echo
 curl ${LOCAL_APP_URL}/countAll
 echo
-
 echo
-
 echo Using remote app:
 curl ${REMOTE_APP_URL}/count
 echo
 curl ${REMOTE_APP_URL}/percentage/I%20in%20ICA%2CC%2CSecond%20A%20in%20AMERICA%27S
 echo
 curl ${REMOTE_APP_URL}/count/I%20in%20ICA
+echo
+curl ${LOCAL_APP_URL}/countAll
